@@ -1,16 +1,47 @@
-# React + Vite
+# Expense Management System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Overview
+The **Expense Management System** is a web-based application designed to simplify and automate the management of company expenses. It allows employees to submit expenses, managers to approve/reject them, and administrators to manage users, roles, and company settings. The system provides clear analytics and reporting for better decision-making.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## React Compiler
+### 1. User Management
+- Add, edit, and delete users.
+- Assign roles (Employee / Manager / Admin).
+- Define manager relationships for approval workflows.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 2. Approval Workflow
+- Set approval sequences for expenses.
+- Configure conditional rules for approvals (e.g., CFO approval for >60%).
 
-## Expanding the ESLint configuration
+### 3. Expense Management
+- Submit, view, approve, or reject expenses.
+- Track expense history.
+- Generate summaries and analytics reports.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 4. Company Settings
+- Manage company preferences (departments, currency, etc.).
+- Secure login/logout functionality.
+
+### 5. Dashboard
+- Interactive dashboard showing quick stats for users, approvals, and expenses.
+- Visual representation of reports and analytics.
+
+---
+
+## Tech Stack
+
+- **Frontend:** React.js, HTML, CSS, JavaScript
+- **Backend:** Node.js / Express.js (optional if backend implemented)
+- **Database:** MySQL / MongoDB (optional if backend implemented)
+- **Version Control:** Git & GitHub
+
+---
+
+## Installation
+
+1. **Clone the repository:**
+```bash
+git clone https://github.com/yourusername/expense-management-system.git
