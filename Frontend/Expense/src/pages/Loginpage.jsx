@@ -1,5 +1,6 @@
 // src/components/LoginPage.jsx
 import React, { useState, useEffect, useMemo } from "react";
+import "../index.css"
 
 export default function LoginPage({ onSwitch }) {
   const [email, setEmail] = useState("");
