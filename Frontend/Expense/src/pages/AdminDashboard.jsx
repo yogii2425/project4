@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import Card from './components/Card';
-import Modal from './components/Modal';
-import TopBar from './components/TopBar';
+// import Card from './components/Card';
+// import Modal from './components/Modal';
+// import TopBar from './components/TopBar';
 import { dashboardCards } from './data/dashboardData';
 
 const AdminDashboard = () => {
