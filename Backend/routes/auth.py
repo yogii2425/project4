@@ -1,76 +1,72 @@
-from flask import Blueprint, request, jsonify
-from db.connection import get_db_connection
-from utils.auth import hash_password, verify_password, create_access_token
-import mysql.connector
+from flask import Blueprint, request, jsonify, session
+from werkzeug.security import generate_password_hash, check_password_hash
+from db.connection import get_connection
 
-auth_bp = Blueprint('auth_bp', __name__)
+auth_bp = Blueprint('auth', __name__)
 
-@auth_bp.route('/register', methods=['POST'])
-def register():
-    """
-    If company_name provided and company does not exist -> create company and set user as Admin
-    JSON expected: { name, email, password, company_name (optional), role (optional), manager_id (optional), company_id (optional) }
-    """
-    data = request.json
-    name = data.get('name')
+# -------------------------
+# Signup Route
+# -------------------------
+@auth_bp.route('/signup', methods=['POST'])
+def signup():
+    data = request.get_json()
+    full_name = data.get('full_name')
     email = data.get('email')
     password = data.get('password')
     company_name = data.get('company_name')
-    role = data.get('role', 'Employee')
-    manager_id = data.get('manager_id')
+    phone = data.get('phone')
+    currency = data.get('currency')
+    country = data.get('country')
 
-    if not (name and email and password):
-        return jsonify({'message':'name,email,password required'}), 400
+    if not all([full_name, email, password, company_name, phone, currency, country]):
+        return jsonify({'error': 'All fields are required'}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    hashed_password = generate_password_hash(password)
 
-    # If company_name provided -> create company and set this user as Admin
-    company_id = data.get('company_id')
-    if company_name and not company_id:
-        cursor.execute("INSERT INTO companies (company_name, country, currency_code) VALUES (%s, %s, %s)",
-                       (company_name, data.get('country', ''), data.get('currency_code', '')))
-        conn.commit()
-        company_id = cursor.lastrowid
+    conn = get_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
 
+    cursor = conn.cursor()
     try:
-        hashed = hash_password(password)
-        cursor.execute("""
-            INSERT INTO users (company_id, name, email, password, role, manager_id)
-            VALUES (%s,%s,%s,%s,%s,%s)
-        """, (company_id, name, email, hashed, role, manager_id))
+        cursor.execute(
+            "INSERT INTO users (full_name, email, password, company_name, phone, currency, country) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (full_name, email, hashed_password, company_name, phone, currency, country)
+        )
         conn.commit()
-        user_id = cursor.lastrowid
+        return jsonify({'message': 'User registered successfully'}), 201
+    except Exception as e:
+        print(e)
+        return jsonify({'error': 'User already exists or invalid data'}), 400
+    finally:
         cursor.close()
         conn.close()
 
-        token = create_access_token({'user_id': user_id, 'email': email, 'role': role, 'company_id': company_id})
-        return jsonify({'message':'User registered','token': token, 'user_id': user_id})
-    except mysql.connector.errors.IntegrityError:
-        cursor.close()
-        conn.close()
-        return jsonify({'message':'Email already exists'}), 400
+# -------------------------
+# Login Route
+# -------------------------
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    data = request.json
+    data = request.get_json()
     email = data.get('email')
     password = data.get('password')
-    if not (email and password):
-        return jsonify({'message':'email and password required'}), 400
 
-    conn = get_db_connection()
+    if not email or not password:
+        return jsonify({'error': 'Email and password required'}), 400
+
+    conn = get_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM users WHERE email=%s", (email,))
+    cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
     user = cursor.fetchone()
     cursor.close()
     conn.close()
-    if not user:
-        return jsonify({'message':'Invalid credentials'}), 401
 
-    if not verify_password(user['password'], password):
-        return jsonify({'message':'Invalid credentials'}), 401
-
-    token = create_access_token({'user_id': user['user_id'], 'email': user['email'], 'role': user['role'], 'company_id': user['company_id']})
-    # remove hashed password from response
-    user.pop('password', None)
-    return jsonify({'message':'Login successful', 'token': token, 'user': user})
+    if user and check_password_hash(user['password'], password):
+        session['user_id'] = user['id']
+        return jsonify({'message': 'Login successful'}), 200
+    else:
+        return jsonify({'error': 'Invalid email or password'}), 401
