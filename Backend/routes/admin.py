@@ -1,52 +1,64 @@
 from flask import Blueprint, request, jsonify
 from db.connection import get_db_connection
-from utils.auth import hash_password, verify_password, create_access_token
-import mysql.connector
+from utils.auth import token_required, role_required
 
-auth_bp = Blueprint('auth_bp', __name__)
+admin_bp = Blueprint('admin_bp', __name__)
 
-@auth_bp.route('/register', methods=['POST'])
-def register():
+@admin_bp.route('/rules', methods=['POST'])
+@token_required
+@role_required(['Admin'])
+def create_rule():
     """
-    If company_name provided and company does not exist -> create company and set user as Admin
-    JSON expected: { name, email, password, company_name (optional), role (optional), manager_id (optional), company_id (optional) }
+    Create or update approval rule for company
+    Body: { rule_type: 'Percentage'|'Specific'|'Hybrid', percentage_threshold, specific_approver_id }
     """
+    user = request.user
     data = request.json
-    name = data.get('name')
-    email = data.get('email')
-    password = data.get('password')
-    company_name = data.get('company_name')
-    role = data.get('role', 'Employee')
-    manager_id = data.get('manager_id')
-
-    if not (name and email and password):
-        return jsonify({'message':'name,email,password required'}), 400
+    rule_type = data.get('rule_type', 'Percentage')
+    pct = data.get('percentage_threshold', 100)
+    spec = data.get('specific_approver_id')
 
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    # If company_name provided -> create company and set this user as Admin
-    company_id = data.get('company_id')
-    if company_name and not company_id:
-        cursor.execute("INSERT INTO companies (company_name, country, currency_code) VALUES (%s, %s, %s)",
-                       (company_name, data.get('country', ''), data.get('currency_code', '')))
-        conn.commit()
-        company_id = cursor.lastrowid
-
-    try:
-        hashed = hash_password(password)
+    cursor = conn.cursor()
+    # upsert: if exists update else insert
+    cursor.execute("SELECT * FROM approval_rules WHERE company_id=%s", (user['company_id'],))
+    exists = cursor.fetchone()
+    if exists:
         cursor.execute("""
-            INSERT INTO users (company_id, name, email, password, role, manager_id)
-            VALUES (%s,%s,%s,%s,%s,%s)
-        """, (company_id, name, email, hashed, role, manager_id))
-        conn.commit()
-        user_id = cursor.lastrowid
-        cursor.close()
-        conn.close()
+            UPDATE approval_rules SET rule_type=%s, percentage_threshold=%s, specific_approver_id=%s WHERE company_id=%s
+        """, (rule_type, pct, spec, user['company_id']))
+    else:
+        cursor.execute("""
+            INSERT INTO approval_rules (company_id, rule_type, percentage_threshold, specific_approver_id)
+            VALUES (%s, %s, %s, %s)
+        """, (user['company_id'], rule_type, pct, spec))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return jsonify({'message':'Rule saved'})
 
-        token = create_access_token({'user_id': user_id, 'email': email, 'role': role, 'company_id': company_id})
-        return jsonify({'message':'User registered','token': token, 'user_id': user_id})
-    except mysql.connector.errors.IntegrityError:
-        cursor.close()
-        conn.close()
-        return jsonify({'message':'Email already exists'}), 400
+@admin_bp.route('/approvals/assign', methods=['POST'])
+@token_required
+@role_required(['Admin'])
+def assign_approvers():
+    """
+    Create explicit approvals for existing expense.
+    Body: { expense_id: int, approver_ids: [id1, id2, ...] }
+    """
+    data = request.json
+    expense_id = data.get('expense_id')
+    approver_ids = data.get('approver_ids', [])
+    if not expense_id or not approver_ids:
+        return jsonify({'message':'expense_id and approver_ids required'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # delete existing approvals for expense if any (careful: you may prefer to keep history)
+    cursor.execute("DELETE FROM approvals WHERE expense_id=%s", (expense_id,))
+    for idx, aid in enumerate(approver_ids):
+        cursor.execute("INSERT INTO approvals (expense_id, approver_id, sequence_no) VALUES (%s,%s,%s)",
+                       (expense_id, aid, idx+1))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return jsonify({'message':'Approvers assigned'})

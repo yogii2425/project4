@@ -2,5 +2,27 @@
   "dependencies": {
     "framer-motion": "^12.23.22",
     "lucide-react": "^0.544.0"
+  "name": "project4",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yogii2425/project4.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yogii2425/project4/issues"
+  },
+  "homepage": "https://github.com/yogii2425/project4#readme",
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "vite": "^7.1.9"
   }
 }
